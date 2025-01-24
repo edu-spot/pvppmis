@@ -1,5 +1,5 @@
 WITH warehouse_activity AS (
-    -- Get the warehouse activity details (start, end times, and credits used)
+    -- Get warehouse activity (all periods when the warehouse was active)
     SELECT 
         WAREHOUSE_NAME,
         START_TIME,
@@ -8,34 +8,52 @@ WITH warehouse_activity AS (
         SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
     WHERE 
         WAREHOUSE_NAME = '<your_warehouse_name>'  -- Replace with your warehouse name
-        AND TO_CHAR(START_TIME, 'YYYY-MM-DD') = '<specific_date>'  -- Replace with the specific date (e.g., '2025-01-23')
+        AND TO_CHAR(START_TIME, 'YYYY-MM-DD') = '<specific_date>'  -- Replace with the specific date
 ),
 query_activity AS (
-    -- Get the query execution times for the warehouse
+    -- Get query execution times (start and end times of queries)
     SELECT 
         WAREHOUSE_NAME,
-        MIN(START_TIME) AS QUERY_START_TIME,
-        MAX(END_TIME) AS QUERY_END_TIME
+        START_TIME AS QUERY_START_TIME,
+        END_TIME AS QUERY_END_TIME
     FROM 
         SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
     WHERE 
         WAREHOUSE_NAME = '<your_warehouse_name>'  -- Replace with your warehouse name
         AND TO_CHAR(START_TIME, 'YYYY-MM-DD') = '<specific_date>'  -- Replace with the specific date
-    GROUP BY 
-        WAREHOUSE_NAME
 ),
-idle_periods AS (
-    -- Calculate idle periods by comparing warehouse activity and query activity
+combined_activity AS (
+    -- Combine warehouse activity and query activity to get gaps between them
     SELECT 
         wa.WAREHOUSE_NAME,
-        wa.START_TIME,
-        wa.END_TIME,
-        COALESCE(qa.QUERY_START_TIME, wa.END_TIME) AS NEXT_QUERY_START_TIME,
-        DATEDIFF('SECOND', wa.END_TIME, COALESCE(qa.QUERY_START_TIME, wa.END_TIME)) AS idle_seconds
+        wa.START_TIME AS WAREHOUSE_START_TIME,
+        wa.END_TIME AS WAREHOUSE_END_TIME,
+        qa.QUERY_START_TIME,
+        qa.QUERY_END_TIME
     FROM 
         warehouse_activity wa
     LEFT JOIN query_activity qa
-        ON wa.WAREHOUSE_NAME = qa.WAREHOUSE_NAME
+        ON qa.QUERY_START_TIME BETWEEN wa.START_TIME AND wa.END_TIME
     WHERE
-        wa.START_TIME < COALESCE(qa.QUERY_START_TIME, wa.END_TIME)
+        wa.START_TIME <= wa.END_TIME
+),
+idle_periods AS (
+    -- Calculate idle periods by comparing warehouse activity with query activity
+    SELECT 
+        wa.WAREHOUSE_NAME,
+        wa.WAREHOUSE_START_TIME,
+        wa.WAREHOUSE_END_TIME,
+        COALESCE(qa.QUERY_START_TIME, wa.WAREHOUSE_END_TIME) AS NEXT_QUERY_START_TIME,
+        DATEDIFF('SECOND', wa.WAREHOUSE_END_TIME, COALESCE(qa.QUERY_START_TIME, wa.WAREHOUSE_END_TIME)) AS idle_seconds
+    FROM 
+        combined_activity wa
+    LEFT JOIN query_activity qa
+        ON qa.QUERY_START_TIME > wa.WAREHOUSE_END_TIME  -- Check if query starts after the warehouse ends
+    WHERE
+        DATEDIFF('SECOND', wa.WAREHOUSE_END_TIME, COALESCE(qa.QUERY_START_TIME, wa.WAREHOUSE_END_TIME)) > 0
 )
+SELECT 
+    WAREHOUSE_NAME,
+    WAREHOUSE_START_TIME,
+    WAREHOUSE_END_TIME,
+    NEXT_QUERY_START_TIME from idle_periods;
