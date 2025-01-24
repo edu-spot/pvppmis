@@ -1,0 +1,41 @@
+WITH warehouse_activity AS (
+    -- Get the warehouse activity details (start, end times, and credits used)
+    SELECT 
+        WAREHOUSE_NAME,
+        START_TIME,
+        END_TIME
+    FROM 
+        SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
+    WHERE 
+        WAREHOUSE_NAME = '<your_warehouse_name>'  -- Replace with your warehouse name
+        AND TO_CHAR(START_TIME, 'YYYY-MM-DD') = '<specific_date>'  -- Replace with the specific date (e.g., '2025-01-23')
+),
+query_activity AS (
+    -- Get the query execution times for the warehouse
+    SELECT 
+        WAREHOUSE_NAME,
+        MIN(START_TIME) AS QUERY_START_TIME,
+        MAX(END_TIME) AS QUERY_END_TIME
+    FROM 
+        SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
+    WHERE 
+        WAREHOUSE_NAME = '<your_warehouse_name>'  -- Replace with your warehouse name
+        AND TO_CHAR(START_TIME, 'YYYY-MM-DD') = '<specific_date>'  -- Replace with the specific date
+    GROUP BY 
+        WAREHOUSE_NAME
+),
+idle_periods AS (
+    -- Calculate idle periods by comparing warehouse activity and query activity
+    SELECT 
+        wa.WAREHOUSE_NAME,
+        wa.START_TIME,
+        wa.END_TIME,
+        COALESCE(qa.QUERY_START_TIME, wa.END_TIME) AS NEXT_QUERY_START_TIME,
+        DATEDIFF('SECOND', wa.END_TIME, COALESCE(qa.QUERY_START_TIME, wa.END_TIME)) AS idle_seconds
+    FROM 
+        warehouse_activity wa
+    LEFT JOIN query_activity qa
+        ON wa.WAREHOUSE_NAME = qa.WAREHOUSE_NAME
+    WHERE
+        wa.START_TIME < COALESCE(qa.QUERY_START_TIME, wa.END_TIME)
+)
