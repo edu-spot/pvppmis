@@ -1,0 +1,72 @@
+Object tagging helps with categorization, data governance, tracking usage, cost attribution (chargeback), compliance auditing, and more.
+Tags are Snowflake objects that can be created at the account or database level and then applied to supported data objects. Each tag can have a key (the tag name) and a value (e.g., department name, environment).
+When a tag is associated with an object, its metadata becomes queryable using Snowflake's built-in functions. This makes it easier to automate reporting and manage data assets systematically.
+
+A tag is a schema-level object in Snowflake, which is created once and then applied to many different objects as needed. Therefore, tagging a Snowflake object is a two-step process:
+1. Tag Definition (CREATE TAG) 
+2. Tag Assignment (APPLY TAG)
+
+Tags act as the baseline for the data governance process by providing means to track sensitive data, classify a group of objects, resource usage monitoring, and enable data masking and row-level security.
+You can use tags to label objects like warehouses, databases, schemas, or even tables based on the team, project, or environment.
+
+By combining tagging with Access History and QUERY_HISTORY views, you can analyze:
+Who is using which object
+What warehouse was used
+How much compute was consumed
+How to allocate costs back to departments
+
+Tags can be allocated to all the supported services listed below:
+Account
+Application
+Application package
+Database
+Failover group
+Integration
+Network policy
+Replication group
+Role
+Share
+User
+Warehouse
+Database role
+Schema
+Alert
+BUDGET instance
+CLASSIFICATION instance
+Dynamic table
+External function and UDF
+External table
+Git repository
+Apache Iceberg™ table
+Materialized view
+Pipe
+Policy
+Procedure
+Stage
+Stream
+Table
+Task
+View
+Column
+
+
+Tags can be created under any database/schema, but they must be unique within the schema. A role with CREATE TAG privilege is required to create tags on the respective schema.
+
+This example creates a tag admin role and grants CREATE TAG and other required privileges:
+USE ROLE USERADMIN;
+CREATE ROLE tag_admin;
+USE ROLE ACCOUNTADMIN;
+GRANT CREATE TAG on SCHEMA <database.schema_name> to ROLE tag_admin;
+
+# grant usage access on database and schema to tag_admin role where the tags are created
+USE ROLE SYSADMIN;
+GRANT USAGE on DATABASE <database> to ROLE tag_admin;
+GRANT USAGE on SCHEMA <database.schema_name> to ROLE tag_admin;
+
+This example creates a tag definition using tag_admin role:
+
+# Assume tag_admin role is assigned to executing user
+# assume the tags are created in database named GOVERNANCE and schema named TAG_LIBRARY
+USE ROLE tag_admin;
+USE SCHEMA GOVERNANCE.TAG_LIBRARY;
+CREATE TAG department ALLOWED_VALUES 'sales','finance' COMMENT='department tag';
