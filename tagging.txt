@@ -66,7 +66,57 @@ GRANT USAGE on SCHEMA <database.schema_name> to ROLE tag_admin;
 This example creates a tag definition using tag_admin role:
 
 # Assume tag_admin role is assigned to executing user
-# assume the tags are created in database named GOVERNANCE and schema named TAG_LIBRARY
+# assume the tags are created in database  DBA_DB and schema  PUBLIC
 USE ROLE tag_admin;
-USE SCHEMA GOVERNANCE.TAG_LIBRARY;
-CREATE TAG department ALLOWED_VALUES 'sales','finance' COMMENT='department tag';
+USE SCHEMA DBA_DB.PUBLIC;
+CREATE TAG department ALLOWED_VALUES 'transfers','finance' COMMENT='department tag';
+
+
+A role with APPLY TAG privilege is required to apply tags on Snowflake objects. The below example grants the APPLY TAG on account as a global privilege and for a single tag, respectively:
+
+# global privilege - tag_admin role can apply tags on account
+USE ROLE ACCOUNTADMIN;
+GRANT APPLY TAG on ACCOUNT to ROLE tag_admin;
+
+# grant privileges to apply a single tag
+# assume the tag cost_center tag is created in database  DBA_DB and schema  PUBLIC
+GRANT APPLY on TAG DBA_DB.PUBLIC.cost_center to ROLE Data_Owner;
+
+
+This example applies the department tag to warehouses my_warehouse1 and my_warehouse2.
+
+# assume the tags are stored in database  DBA_DB and schema PUBLIC
+USE ROLE tag_admin;
+# Apply tag while creating a new warehouse
+CREATE WAREHOUSE my_warehouse1 WITH TAG(DBA_DB.PUBLIC.department='TDB');
+
+# Apply tag for an existing warehouse by altering the object
+ALTER WAREHOUSE my_warehouse2 SET TAG DBA_DB.PUBLIC.department='TDB';
+
+
+To check what tags are available, the below commands can be used:
+# assume the tags are stored in database  DBA_DB and schema PUBLIC
+SHOW TAGS in ACCOUNT;
+SHOW TAGS in DATABASE GOVERNANCE;
+SHOW TAGS in SCHEMA GOVERNANCE.TAG_LIBRARY;
+
+To see all the resources belonging to a specific tag use the below:
+SELECT domain,object_name FROM SNOWFLAKE.ACCOUNT_USAGE.TAG_REFERENCES WHERE TAG_DATABASE='DBA_DB' AND TAG_SCHEMA='PUBLIC' AND TAG_NAME='DEPARTMENT' AND TAG_VALUE='finance';
+
+
+How to Apply Tag-Based Masking Policies
+
+1. Create a tag-based masking policy.
+CREATE MASKING POLICY pii_masking_policy as (val string) RETURNS string
+ ->
+  CASE
+    WHEN SYSTEM$GET_TAG_ON_CURRENT_COLUMN('DBA_DB.PUBLIC.security_class') = 'PII' THEN "**Masked**"
+    ELSE val
+  END;
+
+2. Apply masking policy to tag 'security_class'.
+ALTER TAG GOVERNANCE.TAG_LIBRARY.security_class SET
+  MASKING POLICY pii_masking_policy;
+
+3. Assign the tag security_class=’PII’ to a column will mask the column data automatically. 
+ALTER TABLE User_DB.User_Schema.UserInfo_Table ALTER COLUMN User_Email_Column SET TAG security_class='PII';
