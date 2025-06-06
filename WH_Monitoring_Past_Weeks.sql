@@ -1,5 +1,7 @@
 --set compute_price = 2.32;
+--set compute_price = 2.56;
 --set storage_price = 16.86;
+--set storage_price = 18.4;
 
 show warehouses in account;
 with usage_data as(
