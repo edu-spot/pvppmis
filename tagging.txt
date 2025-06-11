@@ -157,3 +157,12 @@ table_extracted AS (
     ) AS target_table
   FROM merge_target
 )
+
+
+
+
+REGEXP_SUBSTR(
+      after_merge,
+      '^("[^"]+"(\\."[^"]+"){0,2}|[A-Z0-9_]+(\\.[A-Z0-9_]+){0,2})',
+      1, 1, 'i'
+    ) AS target_table
