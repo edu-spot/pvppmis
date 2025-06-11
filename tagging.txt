@@ -118,5 +118,14 @@ CREATE MASKING POLICY pii_masking_policy as (val string) RETURNS string
 ALTER TAG GOVERNANCE.TAG_LIBRARY.security_class SET
   MASKING POLICY pii_masking_policy;
 
+
+
+
+
+REGEXP_SUBSTR(
+    QUERY_TEXT,
+    'MERGE\\s+INTO\\s+("?[\\w$]+"?(?:\\."?[\\w$]+"?){0,2})',
+    1, 1, 'i', 1
+  ) AS target_table,
 3. Assign the tag security_class=’PII’ to a column will mask the column data automatically. 
 ALTER TABLE User_DB.User_Schema.UserInfo_Table ALTER COLUMN User_Email_Column SET TAG security_class='PII';
