@@ -130,3 +130,30 @@ REGEXP_SUBSTR(
     'MERGE\\s+INTO\\s+("[^"]+"|[A-Z0-9_\\.]+)',
     1, 1, 'i', 1
   ) AS target_table
+
+
+
+merge_target AS (
+  SELECT
+    QUERY_TEXT,
+    POSITION('MERGE INTO' IN UQ) AS merge_pos,
+    -- Start 10 chars after 'MERGE INTO' to skip the phrase
+    SUBSTRING(UQ, POSITION('MERGE INTO' IN UQ) + 10) AS after_merge
+  FROM raw_queries
+),
+table_extracted AS (
+  SELECT
+    QUERY_TEXT,
+    -- Trim leading space
+    LTRIM(after_merge) AS trimmed_after_merge,
+    -- Get first word (up to first space or semicolon or newline)
+    SUBSTRING(trimmed_after_merge, 1,
+      LEAST(
+        NULLIF(POSITION(' ' IN trimmed_after_merge), 0),
+        NULLIF(POSITION('\n' IN trimmed_after_merge), 0),
+        NULLIF(POSITION(';' IN trimmed_after_merge), 0),
+        100  -- fallback to max 100 chars if no delimiter
+      ) - 1
+    ) AS target_table
+  FROM merge_target
+)
