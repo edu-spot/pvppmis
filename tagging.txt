@@ -166,3 +166,7 @@ REGEXP_SUBSTR(
       '^("[^"]+"(\\."[^"]+"){0,2}|[A-Z0-9_]+(\\.[A-Z0-9_]+){0,2})',
       1, 1, 'i'
     ) AS target_table
+
+
+
+REGEXP_SUBSTR(column_name, 'IDENTIFIER\\(''([^'']+)''\\)', 1, 1, 'e', 1)
