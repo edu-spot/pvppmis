@@ -170,3 +170,5 @@ REGEXP_SUBSTR(
 
 
 REGEXP_SUBSTR(column_name, 'IDENTIFIER\\(''([^'']+)''\\)', 1, 1, 'e', 1)
+
+REGEXP_SUBSTR(column_name, 'IDENTIFIER\\(''.+?''\\)')
