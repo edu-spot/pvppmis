@@ -41,13 +41,17 @@ $$
 DECLARE
     task_report STRING;
 BEGIN
-    -- Fetch and format failed task info from the past 1 hour
+    -- Format header row
+    LET task_report = RPAD('TASK_NAME', 40) || RPAD('DB', 15) || RPAD('SCHEMA', 15) || RPAD('ERROR', 40) || 'START_TIME' || '\n';
+    LET task_report = task_report || REPEAT('-', 120) || '\n';
+
+    -- Append failed task rows
     SELECT LISTAGG(
-        'Task Name: ' || TASK_NAME || 
-        ', Database: ' || DATABASE_NAME ||
-        ', Schema: ' || SCHEMA_NAME ||
-        ', Error: ' || ERROR_MESSAGE ||
-        ', Start Time: ' || TO_CHAR(START_TIME, 'YYYY-MM-DD HH24:MI:SS'),
+        RPAD(NAME, 40) || 
+        RPAD(DATABASE_NAME, 15) || 
+        RPAD(SCHEMA_NAME, 15) || 
+        RPAD(LEFT(ERROR_MESSAGE, 40), 40) || 
+        TO_CHAR(QUERY_START_TIME, 'YYYY-MM-DD HH24:MI:SS'),
         '\n'
     )
     INTO :task_report
