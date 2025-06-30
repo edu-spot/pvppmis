@@ -39,30 +39,41 @@ LANGUAGE SQL
 AS
 $$
 DECLARE
-    task_report STRING;
+    html_body STRING;
+    table_rows STRING;
 BEGIN
-    -- Format header row
-    LET task_report = RPAD('TASK_NAME', 40) || RPAD('DB', 15) || RPAD('SCHEMA', 15) || RPAD('ERROR', 40) || 'START_TIME' || '\n';
-    LET task_report = task_report || REPEAT('-', 120) || '\n';
-
-    -- Append failed task rows
     SELECT LISTAGG(
-        RPAD(NAME, 40) || 
-        RPAD(DATABASE_NAME, 15) || 
-        RPAD(SCHEMA_NAME, 15) || 
-        RPAD(LEFT(ERROR_MESSAGE, 40), 40) || 
-        TO_CHAR(QUERY_START_TIME, 'YYYY-MM-DD HH24:MI:SS'),
-        '\n'
+        '<tr>' ||
+        '<td>' || NAME || '</td>' ||
+        '<td>' || DATABASE_NAME || '</td>' ||
+        '<td>' || SCHEMA_NAME || '</td>' ||
+        '<td>' || LEFT(ERROR_MESSAGE, 100) || '</td>' ||
+        '<td>' || TO_CHAR(QUERY_START_TIME, 'YYYY-MM-DD HH24:MI:SS') || '</td>' ||
+        '</tr>',
+        ''
     )
-    INTO :task_report
+    INTO :table_rows
     FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
         TIMESTAMPADD('HOUR', -1, CURRENT_TIMESTAMP()), 
         CURRENT_TIMESTAMP()
     ))
     WHERE STATE = 'FAILED';
 
-    IF :task_report IS NULL THEN
-        LET task_report = 'No task failures found in the past hour.';
+    IF (table_rows IS NULL) THEN
+        SET html_body = '<p>No task failures found in the past hour.</p>';
+    ELSE
+        SET html_body = 
+            '<p>The following tasks have failed in the past hour:</p>' ||
+            '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">' ||
+            '<tr>' ||
+            '<th>Task Name</th>' ||
+            '<th>Database</th>' ||
+            '<th>Schema</th>' ||
+            '<th>Error</th>' ||
+            '<th>Start Time</th>' ||
+            '</tr>' || 
+            :table_rows || 
+            '</table>';
     END IF;
 
     -- Send email with the report
