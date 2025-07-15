@@ -13,7 +13,14 @@ BEGIN
     FROM my_table,
          LATERAL FLATTEN(input => attributes) f
   )
-  SELECT LISTAGG('attributes:"' || key || '" AS "' || key || '"', ', ') INTO :column_list
+  SELECT LISTAGG(
+  'COALESCE(' ||
+    'TRY_TO_NUMBER(attributes:"' || key || '"), ' ||
+    'TRY_TO_BOOLEAN(attributes:"' || key || '"), ' ||
+    'attributes:"' || key || '"::STRING' ||
+  ') AS "' || key || '"',
+  ', '
+  ) INTO :column_list
   FROM keys;
 
   -- Construct full SQL
