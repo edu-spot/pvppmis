@@ -4,7 +4,7 @@ import os
 import pandas as pd
 
 # === Configuration ===
-BASE_URL = "https://alationprod.us.cloud.wuintranet.net"
+BASE_URL = ""
 ENDPOINTS = [
     "/integration/v1/query/",        # Replace with actual endpoint paths
     "/integration/v2/domain/",
