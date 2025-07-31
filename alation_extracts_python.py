@@ -76,19 +76,37 @@ def fetch_all_data(endpoint):
 
     while True:
         params = {"offset": offset, "limit": PAGE_SIZE}
-        response = requests.get(full_url,headers=HEADERS,params=params)
- 
-        if response.status_code !=200:
-            print(f"Failed to fetch : {response.status_code} - {response.text}")
+        response = requests.get(full_url, headers=HEADERS, params=params)
+
+        if response.status_code != 200:
+            print(f"Failed to fetch: {response.status_code} - {response.text}")
             break
- 
-        data=response.json()
+
+        data = response.json()
         if not data:
             break
- 
-        results.extend(data)
-        offset+= PAGE_SIZE
-        return pd.json_normalize(results)
+
+        # Handle nested format (e.g. if response = {"results": [...]})
+        if isinstance(data, dict) and "results" in data:
+            page_data = data["results"]
+        elif isinstance(data, list):
+            page_data = data
+        else:
+            print(f"Unexpected response format: {type(data)}")
+            break
+
+        if not page_data:
+            break
+
+        results.extend(page_data)
+        print(f"Fetched {len(page_data)} records (offset={offset})")
+
+        if len(page_data) < PAGE_SIZE:
+            break  # Last page
+
+        offset += PAGE_SIZE
+
+    return pd.json_normalize(results)
 
 def save_to_csv(data, filename):
     """
