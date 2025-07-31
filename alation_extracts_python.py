@@ -53,7 +53,7 @@ ENDPOINTS = [
     "/integration/flag/",
     "/integration/tag/"
 ]
-API_TOKEN = "tBPTP8cG-do_n_0Um8JmgVfaqkdOBWnAItk6N6EY1Fk"
+API_TOKEN = ""
 HEADERS = {
     "Token": API_TOKEN,
     "Content-Type": "application/json"
