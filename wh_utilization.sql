@@ -48,3 +48,47 @@ GROUP BY
     usage_date
 ORDER BY 
     usage_date DESC;
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+WITH usage AS (
+  SELECT
+    WAREHOUSE_NAME,
+    DATE_TRUNC('day', START_TIME) AS USAGE_DATE,
+    SUM(CREDITS_USED_COMPUTE) AS COMPUTE_CREDITS
+  FROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
+  WHERE START_TIME >= DATEADD(day, -7, CURRENT_DATE) -- last 7 days
+  GROUP BY 1, 2
+),
+load AS (
+  SELECT
+    WAREHOUSE_NAME,
+    DATE_TRUNC('day', START_TIME) AS LOAD_DATE,
+    SUM(EXECUTION_TIME) / 3600 AS EXECUTION_HOURS  -- seconds to hours
+  FROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_LOAD_HISTORY
+  WHERE START_TIME >= DATEADD(day, -7, CURRENT_DATE)
+  GROUP BY 1, 2
+),
+combined AS (
+  SELECT
+    u.WAREHOUSE_NAME,
+    u.USAGE_DATE,
+    u.COMPUTE_CREDITS,
+    COALESCE(l.EXECUTION_HOURS, 0) AS EXECUTION_HOURS,
+    u.COMPUTE_CREDITS * 3600 AS BILLED_SECONDS,
+    COALESCE(l.EXECUTION_HOURS, 0) * 3600 AS EXECUTION_SECONDS
+  FROM usage u
+  LEFT JOIN load l
+    ON u.WAREHOUSE_NAME = l.WAREHOUSE_NAME
+    AND u.USAGE_DATE = l.LOAD_DATE
+)
+SELECT
+  WAREHOUSE_NAME,
+  USAGE_DATE,
+  ROUND((EXECUTION_SECONDS / NULLIF(BILLED_SECONDS, 0)) * 100, 2) AS UTILIZATION_PERCENT,
+  ROUND(100 - (EXECUTION_SECONDS / NULLIF(BILLED_SECONDS, 0)) * 100, 2) AS IDLE_PERCENT
+FROM combined
+ORDER BY USAGE_DATE DESC, WAREHOUSE_NAME;
